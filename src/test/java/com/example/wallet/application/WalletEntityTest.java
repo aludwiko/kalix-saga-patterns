@@ -48,7 +48,7 @@ class WalletEntityTest {
 
     //then
     assertThat(result.isReply()).isTrue();
-    assertThat(result.getNextEventOfType(WalletCharged.class)).isEqualTo(new WalletCharged(walletId, chargeWallet.amount(), chargeWallet.reservationId()));
+    assertThat(result.getNextEventOfType(WalletCharged.class)).isEqualTo(new WalletCharged(walletId, chargeWallet.amount(), chargeWallet.expenseId()));
     assertThat(testKit.getState().id()).isEqualTo(walletId);
     assertThat(testKit.getState().balance()).isEqualTo(new BigDecimal(90));
   }

@@ -38,9 +38,9 @@ public record Wallet(String id, BigDecimal balance) {
 
   private Either<WalletCommandError, WalletEvent> handleCharge(ChargeWallet charge) {
     if (balance.compareTo(charge.amount()) < 0) {
-      return Either.right(new WalletChargeRejected(id, charge.reservationId()));
+      return Either.right(new WalletChargeRejected(id, charge.expenseId()));
     } else {
-      return Either.right(new WalletCharged(id, charge.amount(), charge.reservationId()));
+      return Either.right(new WalletCharged(id, charge.amount(), charge.expenseId()));
     }
   }
 

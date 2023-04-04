@@ -22,8 +22,8 @@ public class ChargeForReservation extends Action {
 
   public Effect<String> charge(SeatReserved seatReserved) {
     logger.info("charging for reservation, triggered by " + seatReserved);
-    String reservationId = seatReserved.reservationId();
-    var chargeWallet = new ChargeWallet(seatReserved.price(), reservationId);
+    String expenseId = seatReserved.reservationId();
+    var chargeWallet = new ChargeWallet(seatReserved.price(), expenseId);
 
     var chargeCall = componentClient.forEventSourcedEntity(seatReserved.walletId()).call(WalletEntity::charge).params(chargeWallet);
 

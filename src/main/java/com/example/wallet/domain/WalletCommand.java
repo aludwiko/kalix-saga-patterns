@@ -7,7 +7,7 @@ public sealed interface WalletCommand {
   record CreateWallet(BigDecimal initialAmount) implements WalletCommand {
   }
 
-  record ChargeWallet(BigDecimal amount, String reservationId) implements WalletCommand {
+  record ChargeWallet(BigDecimal amount, String expenseId) implements WalletCommand {
   }
 
   record DepositFunds(BigDecimal amount) implements WalletCommand {
