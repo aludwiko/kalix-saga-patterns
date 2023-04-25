@@ -1,5 +1,7 @@
 package com.example;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import kalix.javasdk.JsonSupport;
 import kalix.javasdk.annotations.Acl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,7 @@ public class Main {
 
   public static void main(String[] args) {
     logger.info("Starting Kalix - Spring SDK");
+    JsonSupport.getObjectMapper().configure(DeserializationFeature.FAIL_ON_NULL_CREATOR_PROPERTIES, true);
     SpringApplication.run(Main.class, args);
   }
 }

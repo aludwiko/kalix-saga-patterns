@@ -1,14 +1,15 @@
 package com.example.cinema.domain;
 
+import com.example.cinema.domain.ShowCommand.CancelSeatReservation;
 import com.example.cinema.domain.ShowCommand.ConfirmReservationPayment;
 import com.example.cinema.domain.ShowEvent.SeatReservationCancelled;
 import com.example.cinema.domain.ShowEvent.SeatReservationPaid;
 import com.example.cinema.domain.ShowEvent.SeatReserved;
 import io.vavr.Tuple2;
-import io.vavr.collection.List;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static com.example.cinema.domain.DomainGenerators.randomReservationId;
 import static com.example.cinema.domain.DomainGenerators.randomShow;
@@ -18,6 +19,7 @@ import static com.example.cinema.domain.SeatStatus.AVAILABLE;
 import static com.example.cinema.domain.SeatStatus.PAID;
 import static com.example.cinema.domain.SeatStatus.RESERVED;
 import static com.example.cinema.domain.ShowBuilder.showBuilder;
+import static com.example.cinema.domain.ShowCommandError.DUPLICATED_COMMAND;
 import static com.example.cinema.domain.ShowCommandError.RESERVATION_NOT_FOUND;
 import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_AVAILABLE;
 import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_EXISTS;
@@ -93,6 +95,27 @@ class ShowTest {
     //given
     var show = randomShow();
     var reserveSeat = randomReserveSeat();
+    var reserveTheSameSeat = new ShowCommand.ReserveSeat(randomWalletId(), randomReservationId(), reserveSeat.seatNumber());
+
+    //when
+    var event = show.process(reserveSeat).get();
+    var updatedShow = show.apply(event);
+
+    //then
+    assertThat(event).isInstanceOf(SeatReserved.class);
+
+    //when
+    ShowCommandError result = updatedShow.process(reserveTheSameSeat).getLeft();
+
+    //then
+    assertThat(result).isEqualTo(SEAT_NOT_AVAILABLE);
+  }
+
+  @Test
+  public void shouldRejectReservationDuplicate() {
+    //given
+    var show = randomShow();
+    var reserveSeat = randomReserveSeat();
 
     //when
     var event = show.process(reserveSeat).get();
@@ -105,7 +128,7 @@ class ShowTest {
     ShowCommandError result = updatedShow.process(reserveSeat).getLeft();
 
     //then
-    assertThat(result).isEqualTo(SEAT_NOT_AVAILABLE);
+    assertThat(result).isEqualTo(DUPLICATED_COMMAND);
   }
 
   @Test
@@ -127,7 +150,7 @@ class ShowTest {
     var reservedSeat = new Seat(2, SeatStatus.RESERVED, new BigDecimal("123"));
     var reservationId = randomReservationId();
     var show = showBuilder().withRandomSeats().withSeatReservation(reservedSeat, reservationId).build();
-    var cancelSeatReservation = new ShowCommand.CancelSeatReservation(reservationId);
+    var cancelSeatReservation = new CancelSeatReservation(reservationId);
 
     //when
     var event = show.process(cancelSeatReservation).get();
@@ -137,6 +160,46 @@ class ShowTest {
     assertThat(event).isEqualTo(new SeatReservationCancelled(show.id(), reservationId, reservedSeat.number()));
     assertThat(updatedShow.getSeat(reservedSeat.number()).get().status()).isEqualTo(AVAILABLE);
     assertThat(updatedShow.pendingReservations().get(reservationId).isEmpty()).isTrue();
+  }
+
+  @Test
+  public void shouldRejectCancellationDuplicate() {
+    //given
+    var reservedSeat = new Seat(2, SeatStatus.RESERVED, new BigDecimal("123"));
+    var reservationId = randomReservationId();
+    var show = showBuilder().withRandomSeats().withSeatReservation(reservedSeat, reservationId).build();
+    var cancelSeatReservation = new CancelSeatReservation(reservationId);
+
+    //when
+    var event = show.process(cancelSeatReservation).get();
+    var updatedShow = show.apply(event);
+
+    //then
+    assertThat(event).isInstanceOf(SeatReservationCancelled.class);
+
+    //when
+    ShowCommandError result = updatedShow.process(cancelSeatReservation).getLeft();
+
+    //then
+    assertThat(result).isEqualTo(DUPLICATED_COMMAND);
+  }
+
+  @Test
+  public void shouldRejectConfirmationAfterCancellation() {
+    //given
+    var reservedSeat = new Seat(2, SeatStatus.RESERVED, new BigDecimal("123"));
+    var reservationId = randomReservationId();
+    var show = showBuilder().withRandomSeats().withSeatReservation(reservedSeat, reservationId).build();
+    var cancelSeatReservation = new CancelSeatReservation(reservationId);
+    var confirmReservationPayment = new ShowCommand.ConfirmReservationPayment(reservationId);
+    var event = show.process(cancelSeatReservation).get();
+    var updatedShow = show.apply(event);
+
+    //when
+    var result = updatedShow.process(confirmReservationPayment).getLeft();
+
+    //then
+    assertThat(result).isEqualTo(RESERVATION_NOT_FOUND);
   }
 
   @Test
@@ -158,10 +221,50 @@ class ShowTest {
   }
 
   @Test
+  public void shouldRejectConfirmationDuplicate() {
+    //given
+    var reservedSeat = new Seat(2, SeatStatus.RESERVED, new BigDecimal("123"));
+    var reservationId = randomReservationId();
+    var show = showBuilder().withRandomSeats().withSeatReservation(reservedSeat, reservationId).build();
+    var confirmReservationPayment = new ConfirmReservationPayment(reservationId);
+
+    //when
+    var event = show.process(confirmReservationPayment).get();
+    var updatedShow = show.apply(event);
+
+    //then
+    assertThat(event).isInstanceOf(SeatReservationPaid.class);
+
+    //when
+    ShowCommandError result = updatedShow.process(confirmReservationPayment).getLeft();
+
+    //then
+    assertThat(result).isEqualTo(DUPLICATED_COMMAND);
+  }
+
+  @Test
+  public void shouldRejectCancellationAfterConfirmation() {
+    //given
+    var reservedSeat = new Seat(2, SeatStatus.RESERVED, new BigDecimal("123"));
+    var reservationId = randomReservationId();
+    var show = showBuilder().withRandomSeats().withSeatReservation(reservedSeat, reservationId).build();
+    var confirmReservationPayment = new ConfirmReservationPayment(reservationId);
+    var cancelSeatReservation = new CancelSeatReservation(reservationId);
+    var event = show.process(confirmReservationPayment).get();
+    var updatedShow = show.apply(event);
+
+    //when
+    ShowCommandError result = updatedShow.process(cancelSeatReservation).getLeft();
+
+    //then
+    assertThat(result).isEqualTo(RESERVATION_NOT_FOUND);
+  }
+
+  @Test
   public void shouldNotCancelReservationOfAvailableSeat() {
     //given
     var show = randomShow();
-    var cancelSeatReservation = new ShowCommand.CancelSeatReservation(randomReservationId());
+    var cancelSeatReservation = new CancelSeatReservation(randomReservationId());
 
     //when
     var result = show.process(cancelSeatReservation).getLeft();
@@ -171,6 +274,6 @@ class ShowTest {
   }
 
   private Show apply(Show show, List<ShowEvent> events) {
-    return events.foldLeft(show, Show::apply);
+    return io.vavr.collection.List.ofAll(events).foldLeft(show, Show::apply);
   }
 }

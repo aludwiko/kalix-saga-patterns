@@ -3,8 +3,11 @@ package com.example.cinema.application;
 import com.example.cinema.domain.SeatStatus;
 import com.example.cinema.domain.Show;
 import com.example.cinema.domain.ShowCommand;
+import com.example.cinema.domain.ShowCommand.CancelSeatReservation;
 import com.example.cinema.domain.ShowCommand.ConfirmReservationPayment;
+import com.example.cinema.domain.ShowCommand.CreateShow;
 import com.example.cinema.domain.ShowCommand.ReserveSeat;
+import com.example.cinema.domain.ShowCommandError;
 import com.example.cinema.domain.ShowCreator;
 import com.example.cinema.domain.ShowEvent;
 import com.example.cinema.domain.ShowEvent.SeatReservationCancelled;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static com.example.cinema.domain.ShowCommandError.DUPLICATED_COMMAND;
 import static kalix.javasdk.StatusCode.ErrorCode.BAD_REQUEST;
 import static kalix.javasdk.StatusCode.ErrorCode.NOT_FOUND;
 
@@ -34,17 +38,13 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
   @PostMapping
-  public Effect<String> create(@PathVariable String id, @RequestBody ShowCommand.CreateShow createShow) {
+  public Effect<String> create(@PathVariable String id, @RequestBody CreateShow createShow) {
     if (currentState() != null) {
       return effects().error("show already exists", BAD_REQUEST);
     } else {
       return ShowCreator.create(id, createShow).fold(
-          error ->
-              effects().error(error.name(), BAD_REQUEST),
-          showCreated ->
-              effects()
-                  .emitEvent(showCreated)
-                  .thenReply(__ -> "show created")
+        error -> errorEffect(error, createShow),
+        showCreated -> persistEffect(showCreated, "show created")
       );
     }
   }
@@ -55,11 +55,8 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
       return effects().error("show not exists", NOT_FOUND);
     } else {
       return currentState().process(reserveSeat).fold(
-          error -> effects()
-              .error(error.name()),
-          showEvent -> effects()
-              .emitEvent(showEvent)
-              .thenReply(__ -> "reserved")
+        error -> errorEffect(error, reserveSeat),
+        showEvent -> persistEffect(showEvent, "reserved")
       );
     }
   }
@@ -69,13 +66,10 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
     if (currentState() == null) {
       return effects().error("show not exists", NOT_FOUND);
     } else {
-      return currentState().process(new ShowCommand.CancelSeatReservation(reservationId)).fold(
-          error ->
-              effects().error(error.name()),
-          showEvent ->
-              effects()
-                  .emitEvent(showEvent)
-                  .thenReply(__ -> "reservation cancelled")
+      CancelSeatReservation cancelSeatReservation = new CancelSeatReservation(reservationId);
+      return currentState().process(cancelSeatReservation).fold(
+        error -> errorEffect(error, cancelSeatReservation),
+        showEvent -> persistEffect(showEvent, "reservation cancelled")
       );
     }
   }
@@ -87,15 +81,24 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
     } else {
       ConfirmReservationPayment confirmReservationPayment = new ConfirmReservationPayment(reservationId);
       return currentState().process(confirmReservationPayment).fold(
-          error -> {
-            logger.error("processing command {} failed with {}", confirmReservationPayment, error);
-            return effects().error(error.name());
-          },
-          showEvent ->
-              effects()
-                  .emitEvent(showEvent)
-                  .thenReply(__ -> "payment confirmed")
+        error -> errorEffect(error, confirmReservationPayment),
+        showEvent -> persistEffect(showEvent, "payment confirmed")
       );
+    }
+  }
+
+  private Effect<String> persistEffect(ShowEvent showEvent, String message) {
+    return effects()
+      .emitEvent(showEvent)
+      .thenReply(__ -> message);
+  }
+
+  private Effect<String> errorEffect(ShowCommandError error, ShowCommand showCommand) {
+    if (error == DUPLICATED_COMMAND) {
+      return effects().reply("duplicated command, ignoring");
+    } else {
+      logger.error("processing command {} failed with {}", showCommand, error);
+      return effects().error(error.name(), BAD_REQUEST);
     }
   }
 
@@ -114,8 +117,8 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
       return effects().error("show not exists", NOT_FOUND);
     } else {
       return currentState().seats().get(seatNumber).fold(
-          () -> effects().error("seat not exists", NOT_FOUND),
-          seat -> effects().reply(seat.status())
+        () -> effects().error("seat not exists", NOT_FOUND),
+        seat -> effects().reply(seat.status())
       );
     }
   }

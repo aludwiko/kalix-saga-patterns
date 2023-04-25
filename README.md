@@ -40,7 +40,9 @@ curl -X POST http://localhost:9000/wallet/1/create/100
 Deposit funds
 
 ```shell
-curl -X PATCH http://localhost:9000/wallet/1/deposit/50  
+curl -X PATCH http://localhost:9000/wallet/1/deposit/50 \
+  --header "Content-Type: application/json" \
+  --data '{"amount": "50", "commandId": 234}'  
 ```
 
 Get wallet

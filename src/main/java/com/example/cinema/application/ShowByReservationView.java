@@ -12,8 +12,6 @@ import kalix.javasdk.annotations.ViewId;
 import kalix.javasdk.view.View;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import java.util.ArrayList;
-
 @ViewId("show_by_reservation_view")
 @Table("show_by_reservation")
 @Subscribe.EventSourcedEntity(value = ShowEntity.class)
@@ -26,7 +24,7 @@ public class ShowByReservationView extends View<ShowByReservation> {
   }
 
   public UpdateEffect<ShowByReservation> onEvent(ShowCreated created) {
-    return effects().updateState(new ShowByReservation(created.showId(), new ArrayList<>()));
+    return effects().updateState(new ShowByReservation(created.showId()));
   }
 
   public UpdateEffect<ShowByReservation> onEvent(SeatReserved reserved) {

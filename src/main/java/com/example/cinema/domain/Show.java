@@ -16,6 +16,9 @@ import io.vavr.control.Option;
 
 import java.util.List;
 
+import static com.example.cinema.domain.ReservationStatus.CANCELLED;
+import static com.example.cinema.domain.ReservationStatus.CONFIRMED;
+import static com.example.cinema.domain.ShowCommandError.DUPLICATED_COMMAND;
 import static com.example.cinema.domain.ShowCommandError.RESERVATION_NOT_FOUND;
 import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_AVAILABLE;
 import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_EXISTS;
@@ -23,12 +26,13 @@ import static com.example.cinema.domain.ShowCommandError.SHOW_ALREADY_EXISTS;
 import static io.vavr.control.Either.left;
 import static io.vavr.control.Either.right;
 
-public record Show(String id, String title, Map<Integer, Seat> seats, Map<String, Integer> pendingReservations) {
+public record Show(String id, String title, Map<Integer, Seat> seats, Map<String, Integer> pendingReservations,
+                   Map<String, FinishedReservation> finishedReservations) {
 
   public static Show create(ShowCreated showCreated) {
     InitialShow initialShow = showCreated.initialShow();
     List<Tuple2<Integer, Seat>> seats = initialShow.seats().stream().map(seat -> new Tuple2<>(seat.number(), seat)).toList();
-    return new Show(initialShow.id(), initialShow.title(), HashMap.ofEntries(seats), HashMap.empty());
+    return new Show(initialShow.id(), initialShow.title(), HashMap.ofEntries(seats), HashMap.empty(), HashMap.empty());
   }
 
   public Either<ShowCommandError, ShowEvent> process(ShowCommand command) {
@@ -41,34 +45,57 @@ public record Show(String id, String title, Map<Integer, Seat> seats, Map<String
   }
 
   private Either<ShowCommandError, ShowEvent> handleConfirmation(ConfirmReservationPayment confirmReservationPayment) {
-    return pendingReservations.get(confirmReservationPayment.reservationId()).fold(
-        () -> left(RESERVATION_NOT_FOUND),
-        seatNumber -> seats.get(seatNumber)
-            .<Either<ShowCommandError, ShowEvent>>map(seat ->
-                right(new SeatReservationPaid(id, confirmReservationPayment.reservationId(), seatNumber))
-            ).getOrElse(left(SEAT_NOT_EXISTS))
-    );
+    String reservationId = confirmReservationPayment.reservationId();
+    return pendingReservations.get(reservationId).fold(
+        () -> {
+          if (finishedReservations.get(reservationId).exists(FinishedReservation::isConfirmed)) {
+            return left(DUPLICATED_COMMAND);
+          } else {
+            return left(RESERVATION_NOT_FOUND);
+          }
+        },
+        seatNumber ->
+            seats.get(seatNumber).<Either<ShowCommandError, ShowEvent>>map(seat ->
+                right(new SeatReservationPaid(id, reservationId, seatNumber))
+            ).getOrElse(left(SEAT_NOT_EXISTS)));
   }
 
   private Either<ShowCommandError, ShowEvent> handleReservation(ReserveSeat reserveSeat) {
     int seatNumber = reserveSeat.seatNumber();
-    return seats.get(seatNumber).<Either<ShowCommandError, ShowEvent>>map(seat -> {
-      if (seat.isAvailable()) {
-        return right(new SeatReserved(id, reserveSeat.walletId(), reserveSeat.reservationId(), seatNumber, seat.price()));
-      } else {
-        return left(SEAT_NOT_AVAILABLE);
-      }
-    }).getOrElse(left(SEAT_NOT_EXISTS));
+    if (isDuplicate(reserveSeat.reservationId())) {
+      return left(DUPLICATED_COMMAND);
+    } else {
+      return seats.get(seatNumber).<Either<ShowCommandError, ShowEvent>>map(seat -> {
+        if (seat.isAvailable()) {
+          return right(new SeatReserved(id, reserveSeat.walletId(), reserveSeat.reservationId(), seatNumber, seat.price()));
+        } else {
+          return left(SEAT_NOT_AVAILABLE);
+        }
+      }).getOrElse(left(SEAT_NOT_EXISTS));
+    }
   }
 
   private Either<ShowCommandError, ShowEvent> handleCancellation(CancelSeatReservation cancelSeatReservation) {
-    return pendingReservations.get(cancelSeatReservation.reservationId()).fold(
-        () -> left(RESERVATION_NOT_FOUND),
-        seatNumber -> seats.get(seatNumber)
-            .<Either<ShowCommandError, ShowEvent>>map(seat ->
-                right(new SeatReservationCancelled(id, cancelSeatReservation.reservationId(), seatNumber))
-            ).getOrElse(left(SEAT_NOT_EXISTS))
+    String reservationId = cancelSeatReservation.reservationId();
+    return pendingReservations.get(reservationId).fold(
+        /*no reservation*/
+        () -> {
+          if (finishedReservations.get(reservationId).exists(FinishedReservation::isCancelled)) {
+            return left(DUPLICATED_COMMAND);
+          } else {
+            return left(RESERVATION_NOT_FOUND);
+          }
+        },
+        /*matching reservation*/
+        seatNumber -> seats.get(seatNumber).<Either<ShowCommandError, ShowEvent>>map(seat ->
+            right(new SeatReservationCancelled(id, reservationId, seatNumber))
+        ).getOrElse(left(SEAT_NOT_EXISTS))
     );
+  }
+
+  private boolean isDuplicate(String reservationId) {
+    return pendingReservations.containsKey(reservationId) ||
+        finishedReservations.get(reservationId).isDefined();
   }
 
   public Show apply(ShowEvent event) {
@@ -82,18 +109,26 @@ public record Show(String id, String title, Map<Integer, Seat> seats, Map<String
 
   private Show applyReservationPaid(SeatReservationPaid seatReservationPaid) {
     Seat seat = getSeatOrThrow(seatReservationPaid.seatNumber());
-    return new Show(id, title, seats.put(seat.number(), seat.paid()), pendingReservations.remove(seatReservationPaid.reservationId()));
+    String reservationId = seatReservationPaid.reservationId();
+    return new Show(id, title, seats.put(seat.number(), seat.paid()),
+        pendingReservations.remove(reservationId),
+        finishedReservations.put(reservationId, new FinishedReservation(reservationId, CONFIRMED)));
 
   }
 
   private Show applyReservationCancelled(SeatReservationCancelled seatReservationCancelled) {
     Seat seat = getSeatOrThrow(seatReservationCancelled.seatNumber());
-    return new Show(id, title, seats.put(seat.number(), seat.available()), pendingReservations.remove(seatReservationCancelled.reservationId()));
+    String reservationId = seatReservationCancelled.reservationId();
+    return new Show(id, title, seats.put(seat.number(), seat.available()),
+        pendingReservations.remove(reservationId),
+        finishedReservations.put(reservationId, new FinishedReservation(reservationId, CANCELLED)));
   }
 
   private Show applyReserved(SeatReserved seatReserved) {
     Seat seat = getSeatOrThrow(seatReserved.seatNumber());
-    return new Show(id, title, seats.put(seat.number(), seat.reserved()), pendingReservations.put(seatReserved.reservationId(), seatReserved.seatNumber()));
+    return new Show(id, title, seats.put(seat.number(), seat.reserved()),
+        pendingReservations.put(seatReserved.reservationId(), seatReserved.seatNumber()),
+        finishedReservations);
   }
 
   private Seat getSeatOrThrow(int seatNumber) {

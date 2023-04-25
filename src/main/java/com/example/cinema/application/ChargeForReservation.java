@@ -9,6 +9,10 @@ import kalix.javasdk.client.ComponentClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.UUID;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 @Subscribe.EventSourcedEntity(value = ShowEntity.class, ignoreUnknown = true)
 public class ChargeForReservation extends Action {
 
@@ -23,7 +27,10 @@ public class ChargeForReservation extends Action {
   public Effect<String> charge(SeatReserved seatReserved) {
     logger.info("charging for reservation, triggered by " + seatReserved);
     String expenseId = seatReserved.reservationId();
-    var chargeWallet = new ChargeWallet(seatReserved.price(), expenseId);
+
+    String sequenceNum = contextForComponents().metadata().get("ce-sequence").orElseThrow();
+    String commandId = UUID.nameUUIDFromBytes(sequenceNum.getBytes(UTF_8)).toString();
+    var chargeWallet = new ChargeWallet(seatReserved.price(), expenseId, commandId);
 
     var chargeCall = componentClient.forEventSourcedEntity(seatReserved.walletId()).call(WalletEntity::charge).params(chargeWallet);
 

@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.example.cinema.application.TestUtils.randomId;
@@ -42,7 +42,7 @@ class ShowByReservationViewIntegrationTest extends KalixIntegrationTestKitSuppor
     showCalls.reserveSeat(showId, walletId, reservationId2, 4);
 
     //then
-    ShowByReservation expected = new ShowByReservation(showId, List.of(reservationId1, reservationId2));
+    ShowByReservation expected = new ShowByReservation(showId, Set.of(reservationId1, reservationId2));
     await()
       .atMost(10, TimeUnit.of(SECONDS))
       .ignoreExceptions()
@@ -58,7 +58,7 @@ class ShowByReservationViewIntegrationTest extends KalixIntegrationTestKitSuppor
     showCalls.cancelSeatReservation(showId, reservationId2);
 
     //then
-    ShowByReservation expectedAfterCancel = new ShowByReservation(showId, List.of(reservationId1));
+    ShowByReservation expectedAfterCancel = new ShowByReservation(showId, Set.of(reservationId1));
     await()
       .atMost(10, TimeUnit.of(SECONDS))
       .ignoreExceptions()

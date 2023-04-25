@@ -11,14 +11,14 @@ public sealed interface WalletEvent {
   }
 
   @TypeName("wallet-charged")
-  record WalletCharged(String walletId, BigDecimal amount, String expenseId) implements WalletEvent {
+  record WalletCharged(String walletId, BigDecimal amount, String expenseId, String commandId) implements WalletEvent {
   }
 
   @TypeName("funds-deposited")
-  record FundsDeposited(String walletId, BigDecimal amount) implements WalletEvent {
+  record FundsDeposited(String walletId, BigDecimal amount, String commandId) implements WalletEvent {
   }
 
   @TypeName("wallet-charge-rejected")
-  record WalletChargeRejected(String walletId, String expenseId) implements WalletEvent {
+  record WalletChargeRejected(String walletId, String expenseId, String commandId) implements WalletEvent {
   }
 }

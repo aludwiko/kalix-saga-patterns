@@ -1,8 +1,10 @@
 package com.example.wallet.application;
 
 import com.example.wallet.domain.Wallet;
+import com.example.wallet.domain.WalletCommand;
 import com.example.wallet.domain.WalletCommand.ChargeWallet;
 import com.example.wallet.domain.WalletCommand.DepositFunds;
+import com.example.wallet.domain.WalletCommandError;
 import com.example.wallet.domain.WalletEvent;
 import com.example.wallet.domain.WalletEvent.FundsDeposited;
 import com.example.wallet.domain.WalletEvent.WalletChargeRejected;
@@ -33,72 +35,67 @@ public class WalletEntity extends EventSourcedEntity<Wallet, WalletEvent> {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  @PostMapping("/create/{initialBalance}")
-  public Effect<String> create(@PathVariable String id, @PathVariable int initialBalance) {
-    if (currentState() != null) {
-      logger.warn("wallet already exists");
-      return effects().error("wallet already exists", BAD_REQUEST);
-    } else {
-      return effects()
-          .emitEvent(new WalletCreated(id, BigDecimal.valueOf(initialBalance)))
-          .thenReply(__ -> {
-            logger.info("wallet {} created, init balance {}", id, initialBalance);
-            return "wallet created";
-          });
-    }
+  @Override
+  public Wallet emptyState() {
+    return Wallet.EMPTY_WALLET;
   }
 
-  @GetMapping
-  public Effect<Wallet> get() {
-    if (currentState() == null) {
-      return effects().error("wallet not created", NOT_FOUND);
-    } else {
-      return effects().reply(currentState());
-    }
+  @PostMapping("/create/{initialBalance}")
+  public Effect<String> create(@PathVariable String id, @PathVariable int initialBalance) {
+    WalletCommand.CreateWallet createWallet = new WalletCommand.CreateWallet(id, BigDecimal.valueOf(initialBalance));
+    return currentState().process(createWallet).fold(
+        error -> errorEffect(error, createWallet),
+        event -> persistEffect(event, "wallet created", createWallet)
+    );
   }
 
   @PatchMapping("/charge")
   public Effect<String> charge(@RequestBody ChargeWallet chargeWallet) {
-    if (currentState() == null) {
-      logger.error("wallet not exists");
-      return effects().error("wallet not exists", NOT_FOUND);
-    } else {
-      return currentState().process(chargeWallet).fold(
-          error -> {
-            logger.error("processing command {} failed with {}", chargeWallet, error);
-            return effects().error(error.name(), BAD_REQUEST);
-          },
-          event -> effects().emitEvent(event).thenReply(__ -> {
-            logger.info("charging wallet completed {}", chargeWallet);
-            return "wallet charged";
-          })
-      );
-    }
+    return currentState().process(chargeWallet).fold(
+        error -> errorEffect(error, chargeWallet),
+        event -> persistEffect(event, "wallet charged", chargeWallet)
+    );
   }
 
   @PatchMapping("/deposit/{amount}")
-  public Effect<String> deposit(@PathVariable int amount) {
-    if (currentState() == null) {
-      logger.error("wallet not exists");
-      return effects().error("wallet not exists", NOT_FOUND);
+  public Effect<String> deposit(@RequestBody DepositFunds depositFunds) {
+    return currentState().process(depositFunds).fold(
+        error -> errorEffect(error, depositFunds),
+        event -> persistEffect(event, "funds deposited", depositFunds)
+    );
+  }
+
+  @GetMapping
+  public Effect<WalletResponse> get() {
+    if (currentState().isEmpty()) {
+      return effects().error("wallet not created", NOT_FOUND);
     } else {
-      DepositFunds depositFunds = new DepositFunds(BigDecimal.valueOf(amount));
-      return currentState().process(depositFunds).fold(
-          error -> {
-            logger.error("processing command {} failed with {}", depositFunds, error);
-            return effects().error(error.name(), BAD_REQUEST);
-          },
-          event -> effects().emitEvent(event).thenReply(__ -> {
-            logger.info("deposit funds completed {}", depositFunds);
-            return "funds deposited";
-          })
-      );
+      return effects().reply(WalletResponse.from(currentState()));
+    }
+  }
+
+  private Effect<String> persistEffect(WalletEvent event, String replyMessage, WalletCommand walletCommand) {
+    return effects()
+        .emitEvent(event)
+        .thenReply(__ -> {
+          logger.info("processing command {} completed", walletCommand);
+          return replyMessage;
+        });
+  }
+
+  private Effect<String> errorEffect(WalletCommandError error, WalletCommand walletCommand) {
+    if (error.equals(WalletCommandError.DUPLICATED_COMMAND)) {
+      logger.debug("Ignoring duplicated command {}", walletCommand);
+      return effects().reply("Ignoring duplicated command");
+    } else {
+      logger.warn("processing {} failed with {}", walletCommand, error);
+      return effects().error(error.name(), BAD_REQUEST);
     }
   }
 
   @EventHandler
   public Wallet onEvent(WalletCreated walletCreated) {
-    return Wallet.create(walletCreated);
+    return currentState().apply(walletCreated);
   }
 
   @EventHandler
