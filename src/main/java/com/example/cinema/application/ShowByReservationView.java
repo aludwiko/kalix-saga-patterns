@@ -1,6 +1,7 @@
 package com.example.cinema.application;
 
 import com.example.cinema.domain.ShowByReservation;
+import com.example.cinema.domain.ShowEvent.CancelledReservationConfirmed;
 import com.example.cinema.domain.ShowEvent.SeatReservationCancelled;
 import com.example.cinema.domain.ShowEvent.SeatReservationPaid;
 import com.example.cinema.domain.ShowEvent.SeatReserved;
@@ -32,10 +33,14 @@ public class ShowByReservationView extends View<ShowByReservation> {
   }
 
   public UpdateEffect<ShowByReservation> onEvent(SeatReservationPaid paid) {
-    return effects().updateState(viewState().remove(paid.reservationId()));
+    return effects().ignore();
   }
 
   public UpdateEffect<ShowByReservation> onEvent(SeatReservationCancelled cancelled) {
-    return effects().updateState(viewState().remove(cancelled.reservationId()));
+    return effects().ignore();
+  }
+
+  public UpdateEffect<ShowByReservation> onEvent(CancelledReservationConfirmed confirmed) {
+    return effects().ignore();
   }
 }

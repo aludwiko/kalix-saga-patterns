@@ -2,9 +2,7 @@ package com.example.cinema.domain;
 
 import io.vavr.Tuple2;
 import io.vavr.collection.HashMap;
-import io.vavr.collection.HashSet;
 import io.vavr.collection.Map;
-import io.vavr.collection.Set;
 
 import java.util.List;
 
@@ -26,7 +24,7 @@ public class ShowBuilder {
 
   public ShowBuilder withRandomSeats() {
     List<Tuple2<Integer, Seat>> seatTuples = createSeats(randomPrice(), MAX_SEATS)
-      .stream().map(seat -> new Tuple2<>(seat.number(), seat)).toList();
+        .stream().map(seat -> new Tuple2<>(seat.number(), seat)).toList();
     this.seats = HashMap.ofEntries(seatTuples);
     return this;
   }

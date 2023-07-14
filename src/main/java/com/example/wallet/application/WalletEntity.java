@@ -11,6 +11,7 @@ import com.example.wallet.domain.WalletEvent.WalletChargeRejected;
 import com.example.wallet.domain.WalletEvent.WalletCharged;
 import com.example.wallet.domain.WalletEvent.WalletCreated;
 import kalix.javasdk.annotations.EventHandler;
+import kalix.javasdk.annotations.ForwardHeaders;
 import kalix.javasdk.annotations.Id;
 import kalix.javasdk.annotations.TypeId;
 import kalix.javasdk.eventsourcedentity.EventSourcedEntity;
@@ -25,12 +26,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.math.BigDecimal;
 
+import static io.grpc.Status.Code.INVALID_ARGUMENT;
 import static kalix.javasdk.StatusCode.ErrorCode.BAD_REQUEST;
 import static kalix.javasdk.StatusCode.ErrorCode.NOT_FOUND;
 
 @Id("id")
 @TypeId("wallet")
 @RequestMapping("/wallet/{id}")
+@ForwardHeaders("skip-failure-simulation")
 public class WalletEntity extends EventSourcedEntity<Wallet, WalletEvent> {
 
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -44,24 +47,29 @@ public class WalletEntity extends EventSourcedEntity<Wallet, WalletEvent> {
   public Effect<String> create(@PathVariable String id, @PathVariable int initialBalance) {
     WalletCommand.CreateWallet createWallet = new WalletCommand.CreateWallet(id, BigDecimal.valueOf(initialBalance));
     return currentState().process(createWallet).fold(
-        error -> errorEffect(error, createWallet),
-        event -> persistEffect(event, "wallet created", createWallet)
+      error -> errorEffect(error, createWallet),
+      event -> persistEffect(event, "wallet created", createWallet)
     );
   }
 
   @PatchMapping("/charge")
   public Effect<String> charge(@RequestBody ChargeWallet chargeWallet) {
-    return currentState().process(chargeWallet).fold(
+    if (chargeWallet.expenseId().equals("42") && commandContext().metadata().get("skip-failure-simulation").isEmpty()) {
+      logger.info("charging failed");
+      return effects().error("Unexpected error for expenseId=42", INVALID_ARGUMENT);
+    } else {
+      return currentState().process(chargeWallet).fold(
         error -> errorEffect(error, chargeWallet),
         event -> persistEffect(event, "wallet charged", chargeWallet)
-    );
+      );
+    }
   }
 
-  @PatchMapping("/deposit/{amount}")
+  @PatchMapping("/deposit")
   public Effect<String> deposit(@RequestBody DepositFunds depositFunds) {
     return currentState().process(depositFunds).fold(
-        error -> errorEffect(error, depositFunds),
-        event -> persistEffect(event, "funds deposited", depositFunds)
+      error -> errorEffect(error, depositFunds),
+      event -> persistEffect(event, "funds deposited", depositFunds)
     );
   }
 
@@ -76,11 +84,11 @@ public class WalletEntity extends EventSourcedEntity<Wallet, WalletEvent> {
 
   private Effect<String> persistEffect(WalletEvent event, String replyMessage, WalletCommand walletCommand) {
     return effects()
-        .emitEvent(event)
-        .thenReply(__ -> {
-          logger.info("processing command {} completed", walletCommand);
-          return replyMessage;
-        });
+      .emitEvent(event)
+      .thenReply(__ -> {
+        logger.info("processing command {} completed", walletCommand);
+        return replyMessage;
+      });
   }
 
   private Effect<String> errorEffect(WalletCommandError error, WalletCommand walletCommand) {

@@ -24,7 +24,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 class ShowByReservationViewIntegrationTest extends KalixIntegrationTestKitSupport {
 
   @Autowired
-  private ShowCalls showCalls;
+  private Calls calls;
 
   private Duration timeout = Duration.ofSeconds(10);
 
@@ -35,11 +35,12 @@ class ShowByReservationViewIntegrationTest extends KalixIntegrationTestKitSuppor
     var reservationId1 = randomId();
     var reservationId2 = randomId();
     var walletId = randomId();
-    showCalls.createShow(showId, "title");
+    calls.createShow(showId, "title");
+    calls.createWallet(walletId, 500);
 
     //when
-    showCalls.reserveSeat(showId, walletId, reservationId1, 3);
-    showCalls.reserveSeat(showId, walletId, reservationId2, 4);
+    calls.reserveSeat(showId, walletId, reservationId1, 3);
+    calls.reserveSeat(showId, walletId, reservationId2, 4);
 
     //then
     ShowByReservation expected = new ShowByReservation(showId, Set.of(reservationId1, reservationId2));
@@ -47,27 +48,11 @@ class ShowByReservationViewIntegrationTest extends KalixIntegrationTestKitSuppor
       .atMost(10, TimeUnit.of(SECONDS))
       .ignoreExceptions()
       .untilAsserted(() -> {
-        ShowByReservation result = showCalls.getShowByReservation(reservationId1).getBody();
+        ShowByReservation result = calls.getShowByReservation(reservationId1).getBody();
         assertThat(result).isEqualTo(expected);
 
-        ShowByReservation result2 = showCalls.getShowByReservation(reservationId2).getBody();
+        ShowByReservation result2 = calls.getShowByReservation(reservationId2).getBody();
         assertThat(result2).isEqualTo(expected);
-      });
-
-    //when
-    showCalls.cancelSeatReservation(showId, reservationId2);
-
-    //then
-    ShowByReservation expectedAfterCancel = new ShowByReservation(showId, Set.of(reservationId1));
-    await()
-      .atMost(10, TimeUnit.of(SECONDS))
-      .ignoreExceptions()
-      .untilAsserted(() -> {
-        ShowByReservation result = showCalls.getShowByReservation(reservationId1).getBody();
-        assertThat(result).isEqualTo(expectedAfterCancel);
-
-        HttpStatusCode statusCode = showCalls.getShowByReservation(reservationId2).getStatusCode();
-        assertThat(statusCode).isEqualTo(HttpStatus.NOT_FOUND);
       });
   }
 

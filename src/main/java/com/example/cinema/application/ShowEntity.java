@@ -10,7 +10,9 @@ import com.example.cinema.domain.ShowCommand.ReserveSeat;
 import com.example.cinema.domain.ShowCommandError;
 import com.example.cinema.domain.ShowCreator;
 import com.example.cinema.domain.ShowEvent;
+import com.example.cinema.domain.ShowEvent.CancelledReservationConfirmed;
 import com.example.cinema.domain.ShowEvent.SeatReservationCancelled;
+import com.example.cinema.domain.ShowEvent.SeatReservationPaid;
 import com.example.cinema.domain.ShowEvent.SeatReserved;
 import com.example.cinema.domain.ShowEvent.ShowCreated;
 import kalix.javasdk.annotations.EventHandler;
@@ -26,6 +28,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.function.Predicate;
+
+import static com.example.cinema.domain.ShowCommandError.CANCELLING_CONFIRMED_RESERVATION;
 import static com.example.cinema.domain.ShowCommandError.DUPLICATED_COMMAND;
 import static kalix.javasdk.StatusCode.ErrorCode.BAD_REQUEST;
 import static kalix.javasdk.StatusCode.ErrorCode.NOT_FOUND;
@@ -68,7 +73,7 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
     } else {
       CancelSeatReservation cancelSeatReservation = new CancelSeatReservation(reservationId);
       return currentState().process(cancelSeatReservation).fold(
-        error -> errorEffect(error, cancelSeatReservation),
+        error -> errorEffect(error, cancelSeatReservation, e -> e == DUPLICATED_COMMAND || e == CANCELLING_CONFIRMED_RESERVATION),
         showEvent -> persistEffect(showEvent, "reservation cancelled")
       );
     }
@@ -94,8 +99,12 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
   }
 
   private Effect<String> errorEffect(ShowCommandError error, ShowCommand showCommand) {
-    if (error == DUPLICATED_COMMAND) {
-      return effects().reply("duplicated command, ignoring");
+    return errorEffect(error, showCommand, e -> e == DUPLICATED_COMMAND);
+  }
+
+  private Effect<String> errorEffect(ShowCommandError error, ShowCommand showCommand, Predicate<ShowCommandError> shouldBeSuccessful) {
+    if (shouldBeSuccessful.test(error)) {
+      return effects().reply("ok");
     } else {
       logger.error("processing command {} failed with {}", showCommand, error);
       return effects().error(error.name(), BAD_REQUEST);
@@ -139,7 +148,12 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
   }
 
   @EventHandler
-  public Show onEvent(ShowEvent.SeatReservationPaid seatReservationPaid) {
+  public Show onEvent(SeatReservationPaid seatReservationPaid) {
     return currentState().apply(seatReservationPaid);
+  }
+
+  @EventHandler
+  public Show onEvent(CancelledReservationConfirmed cancelledReservationConfirmed) {
+    return currentState().apply(cancelledReservationConfirmed);
   }
 }

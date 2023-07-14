@@ -30,9 +30,9 @@ public class CompleteReservation extends Action {
     String reservationId = walletCharged.expenseId();
 
     return effects().asyncReply(
-        getShowIdBy(reservationId).thenCompose(showId ->
-            confirmReservation(showId, reservationId)
-        ));
+      getShowIdBy(reservationId).thenCompose(showId ->
+        confirmReservation(showId, reservationId)
+      ));
   }
 
   public Effect<String> cancelReservation(WalletChargeRejected walletChargeRejected) {
@@ -41,34 +41,34 @@ public class CompleteReservation extends Action {
     String reservationId = walletChargeRejected.expenseId();
 
     return effects().asyncReply(
-        getShowIdBy(reservationId).thenCompose(showId ->
-            cancelReservation(showId, reservationId)
-        ));
+      getShowIdBy(reservationId).thenCompose(showId ->
+        cancelReservation(showId, reservationId)
+      ));
   }
 
   private CompletionStage<String> confirmReservation(String showId, String reservationId) {
     return componentClient.forEventSourcedEntity(showId)
-        .call(ShowEntity::confirmPayment)
-        .params(reservationId)
-        .execute();
+      .call(ShowEntity::confirmPayment)
+      .params(reservationId)
+      .execute();
   }
 
   private CompletionStage<String> cancelReservation(String showId, String reservationId) {
     return componentClient.forEventSourcedEntity(showId)
-        .call(ShowEntity::cancelReservation)
-        .params(reservationId)
-        .execute();
+      .call(ShowEntity::cancelReservation)
+      .params(reservationId)
+      .execute();
   }
 
   //Value Entity as a read model
   private CompletionStage<String> getShowIdBy(String reservationId) {
     return componentClient.forValueEntity(reservationId).call(ReservationEntity::get).execute()
-        .thenApply(Reservation::showId);
+      .thenApply(Reservation::showId);
   }
 
   //View as a read model
   private CompletionStage<String> getShowIdBy2(String reservationId) {
     return componentClient.forView().call(ShowByReservationView::getShow).params(reservationId).execute()
-        .thenApply(ShowByReservation::showId);
+      .thenApply(ShowByReservation::showId);
   }
 }

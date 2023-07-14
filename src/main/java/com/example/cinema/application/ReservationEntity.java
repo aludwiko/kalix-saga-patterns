@@ -7,14 +7,19 @@ import kalix.javasdk.annotations.TypeId;
 import kalix.javasdk.valueentity.ValueEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.math.BigDecimal;
 
 @Id("id")
 @TypeId("reservation")
 @RequestMapping("/reservation/{id}")
 public class ReservationEntity extends ValueEntity<Reservation> {
+
+  public record CreateReservation(String showId, String walletId, BigDecimal price) {
+  }
 
   @GetMapping
   public Effect<Reservation> get() {
@@ -25,10 +30,11 @@ public class ReservationEntity extends ValueEntity<Reservation> {
     }
   }
 
-  @PostMapping("/{showId}")
-  public Effect<String> create(@PathVariable String showId) {
+  @PostMapping
+  public Effect<String> create(@RequestBody CreateReservation createReservation) {
     String reservationId = commandContext().entityId();
-    return effects().updateState(new Reservation(reservationId, showId)).thenReply("reservation created");
+    Reservation reservation = new Reservation(reservationId, createReservation.showId, createReservation.walletId, createReservation.price);
+    return effects().updateState(reservation).thenReply("reservation created");
   }
 
   @DeleteMapping

@@ -23,19 +23,22 @@ public class FoldShowEventsToReservation extends Action {
   }
 
   public Effect<String> onEvent(SeatReserved reserved) {
-    return effects().forward(createReservation(reserved.reservationId(), reserved.showId()));
+    return effects().forward(createReservation(reserved));
   }
 
   public Effect<String> onEvent(SeatReservationPaid paid) {
     return effects().forward(deleteReservation(paid.reservationId()));
   }
 
-  public Effect<String> onEvent(SeatReservationCancelled cancelled) {
-    return effects().forward(deleteReservation(cancelled.reservationId()));
-  }
+//  alternatively we can use dedicated event for the cancellation after a failure
+//  public Effect<String> onEvent(SeatReservationCancelled cancelled) {
+//    return effects().forward(deleteReservation(cancelled.reservationId()));
+//  }
 
-  private DeferredCall<Any, String> createReservation(String reservationId, String showId) {
-    return componentClient.forValueEntity(reservationId).call(ReservationEntity::create).params(showId);
+  private DeferredCall<Any, String> createReservation(SeatReserved reserved) {
+    return componentClient.forValueEntity(reserved.reservationId())
+      .call(ReservationEntity::create)
+      .params(new ReservationEntity.CreateReservation(reserved.showId(), reserved.walletId(), reserved.price()));
   }
 
   private DeferredCall<Any, String> deleteReservation(String reservationId) {

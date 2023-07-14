@@ -2,6 +2,8 @@ package com.example.cinema.application;
 
 import com.example.Main;
 import com.example.cinema.domain.SeatStatus;
+import com.example.wallet.application.WalletResponse;
+import com.example.wallet.domain.WalletCommand;
 import kalix.spring.testkit.KalixIntegrationTestKitSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -27,68 +30,126 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
   @Autowired
   private WebClient webClient;
   @Autowired
-  private ShowCalls showCalls;
+  private Calls calls;
 
   private Duration timeout = Duration.ofSeconds(10);
 
   @Test
-  public void shouldCompleteSeatReservation() throws InterruptedException {
+  public void shouldCompleteSeatReservation() {
     //given
     var walletId = randomId();
     var showId = randomId();
     var reservationId = randomId();
     var seatNumber = 10;
 
-    createWallet(walletId, 200);
-    createShow(showId, "pulp fiction");
+    calls.createWallet(walletId, 200);
+    calls.createShow(showId, "pulp fiction");
 
     //when
-    ResponseEntity<Void> reservationResponse = showCalls.reserveSeat(showId, walletId, reservationId, seatNumber);
+    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
     assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
 
     //then
     await()
       .atMost(10, TimeUnit.of(SECONDS))
       .untilAsserted(() -> {
-        ResponseEntity<SeatStatus> seatStatus = showCalls.getSeatStatus(showId, seatNumber);
+        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
         assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.PAID);
+
+        WalletResponse wallet = calls.getWallet(walletId);
+        assertThat(wallet.balance()).isEqualTo(new BigDecimal(100));
       });
   }
 
   @Test
-  public void shouldRejectReservationIfCaseOfInsufficientWalletBalance() throws InterruptedException {
+  public void shouldRejectReservationIfCaseOfInsufficientWalletBalance() {
     //given
     var walletId = randomId();
     var showId = randomId();
     var reservationId = randomId();
     var seatNumber = 11;
 
-    createWallet(walletId, 1);
-    createShow(showId, "pulp fiction");
+    calls.createWallet(walletId, 1);
+    calls.createShow(showId, "pulp fiction");
 
     //when
-    ResponseEntity<Void> reservationResponse = showCalls.reserveSeat(showId, walletId, reservationId, seatNumber);
+    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
     assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
 
     //then
     await()
       .atMost(20, TimeUnit.of(SECONDS))
       .untilAsserted(() -> {
-        ResponseEntity<SeatStatus> seatStatus = showCalls.getSeatStatus(showId, seatNumber);
+        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
         assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.AVAILABLE);
       });
   }
 
-  private void createWallet(String walletId, int amount) {
-    ResponseEntity<Void> response = webClient.post().uri("/wallet/" + walletId + "/create/" + amount)
-      .retrieve()
-      .toBodilessEntity()
-      .block(timeout);
+  @Test
+  public void shouldConfirmCancelledReservationAndRefund() {
+    //given
+    var walletId = randomId();
+    var showId = randomId();
+    var reservationId = "42";
+    var seatNumber = 11;
 
-    assertThat(response.getStatusCode()).isEqualTo(OK);
+    calls.createWallet(walletId, 300);
+    calls.createShow(showId, "pulp fiction");
+
+    //when
+    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
+    assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
+
+    //then
+    await()
+      .atMost(20, TimeUnit.of(SECONDS))
+      .untilAsserted(() -> {
+        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
+        assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.AVAILABLE);
+      });
+
+    //simulating that the wallet was actually charged
+    calls.chargeWallet(walletId, new WalletCommand.ChargeWallet(new BigDecimal(100), reservationId, randomId()));
+
+    await()
+      .atMost(20, TimeUnit.of(SECONDS))
+      .untilAsserted(() -> {
+        WalletResponse wallet = calls.getWallet(walletId);
+        assertThat(wallet.balance()).isEqualTo(new BigDecimal(300));
+      });
   }
 
-  private void createShow(String showId, String title) {
-    assertThat(showCalls.createShow(showId, title).getStatusCode()).isEqualTo(OK);
+  @Test
+  public void shouldAllowToCancelAlreadyCancelledReservation() {
+    //given
+    var walletId = randomId();
+    var showId = randomId();
+    var reservationId = "42";
+    var seatNumber = 11;
+
+    calls.createWallet(walletId, 300);
+    calls.createShow(showId, "pulp fiction");
+
+    //when
+    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
+    assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
+
+    //then
+    await()
+      .atMost(20, TimeUnit.of(SECONDS))
+      .untilAsserted(() -> {
+        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
+        assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.AVAILABLE);
+      });
+
+    //simulating that the wallet charging was rejected for this reservation
+    calls.chargeWallet(walletId, new WalletCommand.ChargeWallet(new BigDecimal(400), reservationId, randomId()));
+
+    await()
+      .atMost(20, TimeUnit.of(SECONDS))
+      .untilAsserted(() -> {
+        WalletResponse wallet = calls.getWallet(walletId);
+        assertThat(wallet.balance()).isEqualTo(new BigDecimal(300));
+      });
   }
 }

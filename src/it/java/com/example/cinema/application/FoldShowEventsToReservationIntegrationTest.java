@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -29,7 +29,7 @@ class FoldShowEventsToReservationIntegrationTest extends KalixIntegrationTestKit
   @Autowired
   private WebClient webClient;
   @Autowired
-  private ShowCalls showCalls;
+  private Calls calls;
 
   private Duration timeout = Duration.ofSeconds(10);
 
@@ -40,11 +40,12 @@ class FoldShowEventsToReservationIntegrationTest extends KalixIntegrationTestKit
     var reservationId1 = randomId();
     var reservationId2 = randomId();
     var walletId = randomId();
-    showCalls.createShow(showId, "title");
+    calls.createShow(showId, "title");
+    calls.createWallet(walletId, 500);
 
     //when
-    showCalls.reserveSeat(showId, walletId, reservationId1, 3);
-    showCalls.reserveSeat(showId, walletId, reservationId2, 4);
+    calls.reserveSeat(showId, walletId, reservationId1, 3);
+    calls.reserveSeat(showId, walletId, reservationId2, 4);
 
     //then
     await()
@@ -52,25 +53,10 @@ class FoldShowEventsToReservationIntegrationTest extends KalixIntegrationTestKit
       .ignoreExceptions()
       .untilAsserted(() -> {
         Reservation result = getReservation(reservationId1).getBody();
-        assertThat(result).isEqualTo(new Reservation(reservationId1, showId));
+        assertThat(result).isEqualTo(new Reservation(reservationId1, showId, walletId, new BigDecimal(100)));
 
         Reservation result2 = getReservation(reservationId2).getBody();
-        assertThat(result2).isEqualTo(new Reservation(reservationId2, showId));
-      });
-
-    //when
-    showCalls.cancelSeatReservation(showId, reservationId2);
-
-    //then
-    await()
-      .atMost(10, TimeUnit.of(SECONDS))
-      .ignoreExceptions()
-      .untilAsserted(() -> {
-        Reservation result = getReservation(reservationId1).getBody();
-        assertThat(result).isEqualTo(new Reservation(reservationId1, showId));
-
-        HttpStatusCode statusCode = showCalls.getShowByReservation(reservationId2).getStatusCode();
-        assertThat(statusCode).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(result2).isEqualTo(new Reservation(reservationId2, showId, walletId, new BigDecimal(100)));
       });
   }
 
