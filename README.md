@@ -40,7 +40,7 @@ curl -X POST http://localhost:9000/wallet/1/create/100
 Deposit funds
 
 ```shell
-curl -X PATCH http://localhost:9000/wallet/1/deposit/50 \
+curl -X PATCH http://localhost:9000/wallet/1/deposit \
   --header "Content-Type: application/json" \
   --data '{"amount": "50", "commandId": 234}'  
 ```
@@ -66,13 +66,22 @@ Get cinema show
 curl http://localhost:9000/cinema-show/show1
 ```
 
-Make reservation
+Make reservation (choreography-based Saga)
 
 ```shell
 curl http://localhost:9000/cinema-show/show1/reserve \
   -X PATCH \
   --header "Content-Type: application/json" \
   --data '{"walletId": "1", "reservationId": "123", "seatNumber": 3}'
+```
+
+Make reservation (orchestration-based Saga)
+
+```shell
+curl http://localhost:9000/seat-reservation/123 \
+  -i -X POST \
+  --header "Content-Type: application/json" \
+  --data '{"showId": "show1", "seatNumber": 3, "price": 100, "walletId": "1" }'
 ```
 
 Verify wallet balance

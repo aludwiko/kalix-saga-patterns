@@ -111,6 +111,8 @@
                                 </assembly>
                                 <entryPoint>
                                     <arg>java</arg>
+                                    <arg>--enable-preview</arg>
+                                    <arg>-Dspring.profiles.active=orchestration</arg>
                                     <arg>-jar</arg>
                                     <arg>/maven/${project.build.finalName}.jar</arg>
                                 </entryPoint>
@@ -202,6 +204,7 @@
                 <configuration>
                     <jvmArgs>
                         <arg>--enable-preview</arg>
+                        <arg>-Dspring.profiles.active=orchestration</arg>
                     </jvmArgs>
                     <dockerImage>${dockerImage}:${dockerTag}</dockerImage>
                     <mainClass>${mainClass}</mainClass>

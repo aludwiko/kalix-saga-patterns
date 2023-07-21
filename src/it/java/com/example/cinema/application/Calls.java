@@ -38,10 +38,10 @@ public class Calls {
     assertThat(response.getStatusCode()).isEqualTo(OK);
   }
 
-  public ResponseEntity<SeatStatus> getSeatStatus(String showId, int seatNumber) {
+  public SeatStatus getSeatStatus(String showId, int seatNumber) {
     return webClient.get().uri("/cinema-show/" + showId + "/seat-status/" + seatNumber)
       .retrieve()
-      .toEntity(SeatStatus.class)
+      .bodyToMono(SeatStatus.class)
       .block(timeout);
   }
 

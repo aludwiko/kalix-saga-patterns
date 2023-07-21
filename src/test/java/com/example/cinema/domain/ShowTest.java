@@ -24,7 +24,7 @@ import static com.example.cinema.domain.ShowCommandError.CANCELLING_CONFIRMED_RE
 import static com.example.cinema.domain.ShowCommandError.DUPLICATED_COMMAND;
 import static com.example.cinema.domain.ShowCommandError.RESERVATION_NOT_FOUND;
 import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_AVAILABLE;
-import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_EXISTS;
+import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_FOUND;
 import static com.example.cinema.domain.ShowCommandError.SHOW_ALREADY_EXISTS;
 import static com.example.cinema.domain.ShowCommandGenerators.randomCreateShow;
 import static com.example.cinema.domain.ShowCommandGenerators.randomReserveSeat;
@@ -143,7 +143,7 @@ class ShowTest {
     ShowCommandError result = show.process(reserveSeat).getLeft();
 
     //then
-    assertThat(result).isEqualTo(SEAT_NOT_EXISTS);
+    assertThat(result).isEqualTo(SEAT_NOT_FOUND);
   }
 
   @Test

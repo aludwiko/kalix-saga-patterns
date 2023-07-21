@@ -10,9 +10,11 @@ import kalix.javasdk.annotations.Subscribe;
 import kalix.javasdk.client.ComponentClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 
 import java.util.concurrent.CompletionStage;
 
+@Profile("choreography")
 @Subscribe.EventSourcedEntity(value = WalletEntity.class, ignoreUnknown = true)
 public class CompleteReservation extends Action {
 
@@ -24,7 +26,7 @@ public class CompleteReservation extends Action {
     this.componentClient = componentClient;
   }
 
-  public Effect<String> confirmReservation(WalletCharged walletCharged) {
+  public Effect<Response> confirmReservation(WalletCharged walletCharged) {
     logger.info("confirming reservation, triggered by " + walletCharged);
 
     String reservationId = walletCharged.expenseId();
@@ -35,7 +37,7 @@ public class CompleteReservation extends Action {
       ));
   }
 
-  public Effect<String> cancelReservation(WalletChargeRejected walletChargeRejected) {
+  public Effect<Response> cancelReservation(WalletChargeRejected walletChargeRejected) {
     logger.info("cancelling reservation, triggered by " + walletChargeRejected);
 
     String reservationId = walletChargeRejected.expenseId();
@@ -46,14 +48,14 @@ public class CompleteReservation extends Action {
       ));
   }
 
-  private CompletionStage<String> confirmReservation(String showId, String reservationId) {
+  private CompletionStage<Response> confirmReservation(String showId, String reservationId) {
     return componentClient.forEventSourcedEntity(showId)
       .call(ShowEntity::confirmPayment)
       .params(reservationId)
       .execute();
   }
 
-  private CompletionStage<String> cancelReservation(String showId, String reservationId) {
+  private CompletionStage<Response> cancelReservation(String showId, String reservationId) {
     return componentClient.forEventSourcedEntity(showId)
       .call(ShowEntity::cancelReservation)
       .params(reservationId)

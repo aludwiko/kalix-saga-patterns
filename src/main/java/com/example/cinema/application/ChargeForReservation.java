@@ -10,6 +10,7 @@ import kalix.javasdk.annotations.Subscribe;
 import kalix.javasdk.client.ComponentClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
@@ -19,6 +20,7 @@ import java.util.concurrent.CompletionStage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofSeconds;
 
+@Profile("choreography")
 @Subscribe.EventSourcedEntity(value = ShowEntity.class, ignoreUnknown = true)
 public class ChargeForReservation extends Action {
 
@@ -58,7 +60,8 @@ public class ChargeForReservation extends Action {
     return componentClient.forEventSourcedEntity(walletId)
       .call(WalletEntity::charge)
       .params(chargeWallet)
-      .execute();
+      .execute()
+      .thenApply(response -> "done");
   }
 
 

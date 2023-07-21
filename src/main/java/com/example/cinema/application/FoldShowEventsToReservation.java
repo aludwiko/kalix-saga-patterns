@@ -10,7 +10,9 @@ import kalix.javasdk.annotations.Subscribe;
 import kalix.javasdk.client.ComponentClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 
+@Profile("choreography")
 @Subscribe.EventSourcedEntity(value = ShowEntity.class, ignoreUnknown = true)
 public class FoldShowEventsToReservation extends Action {
 

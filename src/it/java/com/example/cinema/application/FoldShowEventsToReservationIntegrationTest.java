@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
@@ -24,6 +25,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @DirtiesContext
 @SpringBootTest(classes = Main.class)
+@ActiveProfiles("choreography")
 class FoldShowEventsToReservationIntegrationTest extends KalixIntegrationTestKitSupport {
 
   @Autowired
@@ -41,7 +43,6 @@ class FoldShowEventsToReservationIntegrationTest extends KalixIntegrationTestKit
     var reservationId2 = randomId();
     var walletId = randomId();
     calls.createShow(showId, "title");
-    calls.createWallet(walletId, 500);
 
     //when
     calls.reserveSeat(showId, walletId, reservationId1, 3);

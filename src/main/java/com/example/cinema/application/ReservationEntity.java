@@ -5,6 +5,7 @@ import io.grpc.Status;
 import kalix.javasdk.annotations.Id;
 import kalix.javasdk.annotations.TypeId;
 import kalix.javasdk.valueentity.ValueEntity;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.math.BigDecimal;
 
+@Profile("choreography")
 @Id("id")
 @TypeId("reservation")
 @RequestMapping("/reservation/{id}")

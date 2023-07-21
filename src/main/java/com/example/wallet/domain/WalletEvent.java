@@ -14,6 +14,10 @@ public sealed interface WalletEvent {
   record WalletCharged(String walletId, BigDecimal amount, String expenseId, String commandId) implements WalletEvent {
   }
 
+  @TypeName("wallet-refunded")
+  record WalletRefunded(String walletId, BigDecimal amount, String expenseId, String commandId) implements WalletEvent {
+  }
+
   @TypeName("funds-deposited")
   record FundsDeposited(String walletId, BigDecimal amount, String commandId) implements WalletEvent {
   }

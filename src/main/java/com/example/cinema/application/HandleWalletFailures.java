@@ -7,9 +7,11 @@ import kalix.javasdk.annotations.Subscribe;
 import kalix.javasdk.client.ComponentClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 
 import java.util.concurrent.CompletionStage;
 
+@Profile("choreography")
 @Subscribe.EventSourcedEntity(value = WalletFailureEntity.class)
 public class HandleWalletFailures extends Action {
 
@@ -21,7 +23,7 @@ public class HandleWalletFailures extends Action {
     this.componentClient = componentClient;
   }
 
-  public Effect<String> handle(WalletChargeFailureOccurred walletChargeFailureOccurred) {
+  public Effect<Response> handle(WalletChargeFailureOccurred walletChargeFailureOccurred) {
     logger.info("handling failure: " + walletChargeFailureOccurred);
 
     String reservationId = walletChargeFailureOccurred.source().expenseId();
@@ -31,7 +33,7 @@ public class HandleWalletFailures extends Action {
     ));
   }
 
-  private CompletionStage<String> cancelReservation(String reservationId, String showId) {
+  private CompletionStage<Response> cancelReservation(String reservationId, String showId) {
     return componentClient.forEventSourcedEntity(showId)
       .call(ShowEntity::cancelReservation)
       .params(reservationId)

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
@@ -25,6 +26,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @DirtiesContext
 @SpringBootTest(classes = Main.class)
+@ActiveProfiles("choreography")
 public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitSupport {
 
   @Autowired
@@ -53,8 +55,8 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     await()
       .atMost(10, TimeUnit.of(SECONDS))
       .untilAsserted(() -> {
-        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
-        assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.PAID);
+        SeatStatus seatStatus = calls.getSeatStatus(showId, seatNumber);
+        assertThat(seatStatus).isEqualTo(SeatStatus.PAID);
 
         WalletResponse wallet = calls.getWallet(walletId);
         assertThat(wallet.balance()).isEqualTo(new BigDecimal(100));
@@ -80,8 +82,8 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     await()
       .atMost(20, TimeUnit.of(SECONDS))
       .untilAsserted(() -> {
-        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
-        assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.AVAILABLE);
+        SeatStatus seatStatus = calls.getSeatStatus(showId, seatNumber);
+        assertThat(seatStatus).isEqualTo(SeatStatus.AVAILABLE);
       });
   }
 
@@ -104,8 +106,8 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     await()
       .atMost(20, TimeUnit.of(SECONDS))
       .untilAsserted(() -> {
-        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
-        assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.AVAILABLE);
+        SeatStatus seatStatus = calls.getSeatStatus(showId, seatNumber);
+        assertThat(seatStatus).isEqualTo(SeatStatus.AVAILABLE);
       });
 
     //simulating that the wallet was actually charged
@@ -138,8 +140,8 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     await()
       .atMost(20, TimeUnit.of(SECONDS))
       .untilAsserted(() -> {
-        ResponseEntity<SeatStatus> seatStatus = calls.getSeatStatus(showId, seatNumber);
-        assertThat(seatStatus.getBody()).isEqualTo(SeatStatus.AVAILABLE);
+        SeatStatus seatStatus = calls.getSeatStatus(showId, seatNumber);
+        assertThat(seatStatus).isEqualTo(SeatStatus.AVAILABLE);
       });
 
     //simulating that the wallet charging was rejected for this reservation

@@ -11,8 +11,10 @@ import kalix.javasdk.annotations.Subscribe;
 import kalix.javasdk.annotations.Table;
 import kalix.javasdk.annotations.ViewId;
 import kalix.javasdk.view.View;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 
+@Profile("choreography")
 @ViewId("show_by_reservation_view")
 @Table("show_by_reservation")
 @Subscribe.EventSourcedEntity(value = ShowEntity.class)

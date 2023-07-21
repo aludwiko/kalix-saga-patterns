@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
 import java.util.Set;
@@ -21,6 +22,7 @@ import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @DirtiesContext
 @SpringBootTest(classes = Main.class)
+@ActiveProfiles("choreography")
 class ShowByReservationViewIntegrationTest extends KalixIntegrationTestKitSupport {
 
   @Autowired

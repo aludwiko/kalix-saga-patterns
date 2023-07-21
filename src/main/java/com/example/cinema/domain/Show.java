@@ -23,7 +23,7 @@ import static com.example.cinema.domain.ShowCommandError.CANCELLING_CONFIRMED_RE
 import static com.example.cinema.domain.ShowCommandError.DUPLICATED_COMMAND;
 import static com.example.cinema.domain.ShowCommandError.RESERVATION_NOT_FOUND;
 import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_AVAILABLE;
-import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_EXISTS;
+import static com.example.cinema.domain.ShowCommandError.SEAT_NOT_FOUND;
 import static com.example.cinema.domain.ShowCommandError.SHOW_ALREADY_EXISTS;
 import static io.vavr.control.Either.left;
 import static io.vavr.control.Either.right;
@@ -57,7 +57,7 @@ public record Show(String id, String title, Map<Integer, Seat> seats, Map<String
       seatNumber ->
         seats.get(seatNumber).<Either<ShowCommandError, ShowEvent>>map(seat ->
           right(new SeatReservationPaid(id, reservationId, seatNumber))
-        ).getOrElse(left(SEAT_NOT_EXISTS)));
+        ).getOrElse(left(SEAT_NOT_FOUND)));
   }
 
   private Either<ShowCommandError, ShowEvent> handleReservation(ReserveSeat reserveSeat) {
@@ -71,7 +71,7 @@ public record Show(String id, String title, Map<Integer, Seat> seats, Map<String
         } else {
           return left(SEAT_NOT_AVAILABLE);
         }
-      }).getOrElse(left(SEAT_NOT_EXISTS));
+      }).getOrElse(left(SEAT_NOT_FOUND));
     }
   }
 
@@ -87,7 +87,7 @@ public record Show(String id, String title, Map<Integer, Seat> seats, Map<String
       /*matching reservation*/
       seatNumber -> seats.get(seatNumber).<Either<ShowCommandError, ShowEvent>>map(seat ->
         right(new SeatReservationCancelled(id, reservationId, seatNumber))
-      ).getOrElse(left(SEAT_NOT_EXISTS))
+      ).getOrElse(left(SEAT_NOT_FOUND))
     );
   }
 
@@ -133,7 +133,7 @@ public record Show(String id, String title, Map<Integer, Seat> seats, Map<String
   }
 
   private Seat getSeatOrThrow(int seatNumber) {
-    return seats.get(seatNumber).getOrElseThrow(() -> new IllegalStateException("Seat not exists %s".formatted(seatNumber)));
+    return seats.get(seatNumber).getOrElseThrow(() -> new IllegalStateException("Seat not found %s".formatted(seatNumber)));
   }
 
   public Option<Seat> getSeat(int seatNumber) {

@@ -1,5 +1,6 @@
 package com.example.wallet.application;
 
+import com.example.cinema.application.Response;
 import com.example.wallet.domain.Wallet;
 import com.example.wallet.domain.WalletCommand;
 import com.example.wallet.domain.WalletEvent;
@@ -26,7 +27,7 @@ class WalletEntityTest {
     EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(WalletEntity::new);
 
     //when
-    EventSourcedResult<String> result = testKit.call(wallet -> wallet.create(walletId, initialAmount));
+    EventSourcedResult<Response> result = testKit.call(wallet -> wallet.create(walletId, initialAmount));
 
     //then
     assertThat(result.isReply()).isTrue();
@@ -45,7 +46,7 @@ class WalletEntityTest {
     var chargeWallet = new WalletCommand.ChargeWallet(new BigDecimal(10), "r1", randomCommandId());
 
     //when
-    EventSourcedResult<String> result = testKit.call(wallet -> wallet.charge(chargeWallet));
+    EventSourcedResult<Response> result = testKit.call(wallet -> wallet.charge(chargeWallet));
 
     //then
     assertThat(result.isReply()).isTrue();
@@ -64,7 +65,26 @@ class WalletEntityTest {
     testKit.call(wallet -> wallet.charge(chargeWallet));
 
     //when
-    EventSourcedResult<String> result = testKit.call(wallet -> wallet.charge(chargeWallet));
+    EventSourcedResult<Response> result = testKit.call(wallet -> wallet.charge(chargeWallet));
+
+    //then
+    assertThat(result.isReply()).isTrue();
+    assertThat(result.didEmitEvents()).isFalse();
+    assertThat(testKit.getState().balance()).isEqualTo(new BigDecimal(90));
+  }
+
+  @Test
+  public void shouldRefundWallet() {
+    //given
+    var walletId = randomWalletId();
+    var initialAmount = 100;
+    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(WalletEntity::new);
+    testKit.call(wallet -> wallet.create(walletId, initialAmount));
+    var chargeWallet = new WalletCommand.ChargeWallet(new BigDecimal(10), "r1", randomCommandId());
+    testKit.call(wallet -> wallet.charge(chargeWallet));
+
+    //when
+    EventSourcedResult<Response> result = testKit.call(wallet -> wallet.charge(chargeWallet));
 
     //then
     assertThat(result.isReply()).isTrue();
