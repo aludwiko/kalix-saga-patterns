@@ -1,8 +1,8 @@
 version: "3"
 services:
   kalix-proxy:
-    image: gcr.io/kalix-public/kalix-proxy:1.1.7
-    command: -Dconfig.resource=dev-mode.conf -Dlogback.configurationFile=logback-dev-mode.xml
+    image: gcr.io/kalix-public/kalix-proxy:1.1.29
+    command: -Dconfig.resource=dev-mode.conf -Dlogback.configurationFile=logback-dev-mode.xml -Dkalix.proxy.backoffice.server-reflection-enabled=true
     ports:
       - "9000:9000"
     extra_hosts:

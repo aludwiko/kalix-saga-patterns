@@ -3,8 +3,13 @@ package com.example.cinema.application;
 import com.example.cinema.domain.SeatStatus;
 import com.example.cinema.domain.ShowByReservation;
 import com.example.cinema.domain.ShowCommand;
+import com.example.wallet.application.WalletEntity;
 import com.example.wallet.application.WalletResponse;
 import com.example.wallet.domain.WalletCommand;
+import com.google.protobuf.any.Any;
+import kalix.javasdk.DeferredCall;
+import kalix.javasdk.Metadata;
+import kalix.javasdk.client.ComponentClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +19,10 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpStatus.OK;
@@ -24,40 +33,29 @@ public class Calls {
   @Autowired
   private WebClient webClient;
 
+  @Autowired
+  private ComponentClient componentClient;
+
   private Duration timeout = Duration.ofSeconds(10);
 
   public void createShow(String showId, String title) {
     int maxSeats = 100;
 
-    var response = webClient.post().uri("/cinema-show/" + showId)
-      .bodyValue(new ShowCommand.CreateShow(title, maxSeats))
-      .retrieve()
-      .toBodilessEntity()
-      .block();
-
-    assertThat(response.getStatusCode()).isEqualTo(OK);
+    execute(componentClient.forEventSourcedEntity(showId)
+      .call(ShowEntity::create)
+      .params(new ShowCommand.CreateShow(title, maxSeats)));
   }
 
   public SeatStatus getSeatStatus(String showId, int seatNumber) {
-    return webClient.get().uri("/cinema-show/" + showId + "/seat-status/" + seatNumber)
-      .retrieve()
-      .bodyToMono(SeatStatus.class)
-      .block(timeout);
+    return execute(componentClient.forEventSourcedEntity(showId)
+      .call(ShowEntity::getSeatStatus)
+      .params(seatNumber));
   }
 
-  public ResponseEntity<Void> reserveSeat(String showId, String walletId, String reservationId, int seatNumber) {
-    return webClient.patch().uri("/cinema-show/" + showId + "/reserve")
-      .bodyValue(new ShowCommand.ReserveSeat(walletId, reservationId, seatNumber))
-      .retrieve()
-      .toBodilessEntity()
-      .block(timeout);
-  }
-
-  public ResponseEntity<Void> cancelSeatReservation(String showId, String reservationId) {
-    return webClient.patch().uri("/cinema-show/" + showId + "/cancel-reservation/" + reservationId)
-      .retrieve()
-      .toBodilessEntity()
-      .block(timeout);
+  public void reserveSeat(String showId, String walletId, String reservationId, int seatNumber) {
+    execute(componentClient.forEventSourcedEntity(showId)
+      .call(ShowEntity::reserve)
+      .params(new ShowCommand.ReserveSeat(walletId, reservationId, seatNumber)));
   }
 
   public ResponseEntity<ShowByReservation> getShowByReservation(String reservationId) {
@@ -75,30 +73,28 @@ public class Calls {
   }
 
   public void createWallet(String walletId, int amount) {
-    ResponseEntity<Void> response = webClient.post().uri("/wallet/" + walletId + "/create/" + amount)
-      .retrieve()
-      .toBodilessEntity()
-      .block(timeout);
-
-    assertThat(response.getStatusCode()).isEqualTo(OK);
+    execute(componentClient.forEventSourcedEntity(walletId)
+      .call(WalletEntity::create)
+      .params(amount));
   }
 
   public WalletResponse getWallet(String walletId) {
-    return webClient.get().uri("/wallet/" + walletId)
-      .retrieve()
-      .bodyToMono(WalletResponse.class)
-      .block(timeout);
+    return execute(componentClient.forEventSourcedEntity(walletId)
+      .call(WalletEntity::get));
   }
 
   public void chargeWallet(String walletId, WalletCommand.ChargeWallet chargeWallet) {
-    ResponseEntity<Void> response = webClient.patch().uri("/wallet/" + walletId + "/charge")
-      .bodyValue(chargeWallet)
-      .header("skip-failure-simulation", "true")
-      .retrieve()
-      .toBodilessEntity()
-      .block(timeout);
-
-    assertThat(response.getStatusCode()).isEqualTo(OK);
+    execute(componentClient.forEventSourcedEntity(walletId)
+      .call(WalletEntity::charge)
+      .params(chargeWallet)
+      .withMetadata(Metadata.EMPTY.add("skip-failure-simulation", "true")));
   }
 
+  private <T> T execute(DeferredCall<Any, T> deferredCall) {
+    try {
+      return deferredCall.execute().toCompletableFuture().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      throw new RuntimeException(e);
+    }
+  }
 }

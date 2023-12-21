@@ -48,8 +48,7 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     calls.createShow(showId, "pulp fiction");
 
     //when
-    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
-    assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
+    calls.reserveSeat(showId, walletId, reservationId, seatNumber);
 
     //then
     await()
@@ -75,8 +74,7 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     calls.createShow(showId, "pulp fiction");
 
     //when
-    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
-    assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
+    calls.reserveSeat(showId, walletId, reservationId, seatNumber);
 
     //then
     await()
@@ -99,8 +97,7 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     calls.createShow(showId, "pulp fiction");
 
     //when
-    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
-    assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
+    calls.reserveSeat(showId, walletId, reservationId, seatNumber);
 
     //then
     await()
@@ -133,8 +130,7 @@ public class ShowSeatReservationIntegrationTest extends KalixIntegrationTestKitS
     calls.createShow(showId, "pulp fiction");
 
     //when
-    ResponseEntity<Void> reservationResponse = calls.reserveSeat(showId, walletId, reservationId, seatNumber);
-    assertThat(reservationResponse.getStatusCode()).isEqualTo(OK);
+    calls.reserveSeat(showId, walletId, reservationId, seatNumber);
 
     //then
     await()

@@ -27,20 +27,25 @@ To start the application locally, the `exec-maven-plugin` is used. Use the follo
 mvn spring-boot:run
 ```
 
-With both the proxy and your application running, once you have defined endpoints they should be available at `http://localhost:9000`.
+With both the proxy and your application running, once you have defined endpoints they should be available at `https://solitary-mud-0193.us-east1.kalix.app`.
 
 ## Testing application
+
+```shell
+export HOST=https://still-boat-2186.us-east1.kalix.app
+#export HOST=http://localhost:9000
+```
 
 Create wallet
 
 ```shell
-curl -X POST http://localhost:9000/wallet/1/create/100  
+curl -X POST $HOST/wallet/1/create/100  
 ```
 
 Deposit funds
 
 ```shell
-curl -X PATCH http://localhost:9000/wallet/1/deposit \
+curl -X PATCH $HOST/wallet/1/deposit \
   --header "Content-Type: application/json" \
   --data '{"amount": "50", "commandId": 234}'  
 ```
@@ -48,13 +53,13 @@ curl -X PATCH http://localhost:9000/wallet/1/deposit \
 Get wallet
 
 ```shell
-curl http://localhost:9000/wallet/1
+curl $HOST/wallet/1
 ```
 
 Create cinema show
 
 ```shell
-curl http://localhost:9000/cinema-show/show1 \
+curl $HOST/cinema-show/show1 \
   -X POST \
   --header "Content-Type: application/json" \
   --data '{"title": "Pulp Fiction", "maxSeats": 10}'
@@ -63,37 +68,37 @@ curl http://localhost:9000/cinema-show/show1 \
 Get cinema show
 
 ```shell
-curl http://localhost:9000/cinema-show/show1
+curl https://solitary-mud-0193.us-east1.kalix.app/cinema-show/show1
 ```
 
 Make reservation (choreography-based Saga)
 
 ```shell
-curl http://localhost:9000/cinema-show/show1/reserve \
+curl https://solitary-mud-0193.us-east1.kalix.app/cinema-show/show1/reserve \
   -X PATCH \
   --header "Content-Type: application/json" \
-  --data '{"walletId": "1", "reservationId": "123", "seatNumber": 3}'
+  --data '{"walletId": "1", "reservationId": "128", "seatNumber": 5}'
 ```
 
 Make reservation (orchestration-based Saga)
 
 ```shell
-curl http://localhost:9000/seat-reservation/123 \
+curl https://solitary-mud-0193.us-east1.kalix.app/seat-reservation/125 \
   -i -X POST \
   --header "Content-Type: application/json" \
-  --data '{"showId": "show1", "seatNumber": 3, "price": 100, "walletId": "1" }'
+  --data '{"showId": "show1", "seatNumber": 2, "price": 100, "walletId": "1" }'
 ```
 
 Verify wallet balance
 
 ```shell
-curl http://localhost:9000/wallet/1
+curl https://solitary-mud-0193.us-east1.kalix.app/wallet/1
 ```
 
 Verify seat status
 
 ```shell
-curl http://localhost:9000/cinema-show/show1/seat-status/3
+curl https://solitary-mud-0193.us-east1.kalix.app/cinema-show/show1/seat-status/1
 ```
 
 # Deploy

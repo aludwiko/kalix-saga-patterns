@@ -46,13 +46,14 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
   @PostMapping
-  public Effect<Response> create(@PathVariable String id, @RequestBody CreateShow createShow) {
+  public Effect<Response> create(@RequestBody CreateShow createShow) {
+    String showId = commandContext().entityId();
     if (currentState() != null) {
       return effects().error("show already exists", BAD_REQUEST);
     } else {
-      return ShowCreator.create(id, createShow).fold(
-        error -> errorEffect(error, createShow),
-        showCreated -> persistEffect(showCreated, "show created")
+      return ShowCreator.create(showId, createShow).fold(
+          error -> errorEffect(error, createShow),
+          showCreated -> persistEffect(showCreated, "show created")
       );
     }
   }
@@ -63,8 +64,8 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
       return effects().error("show not found", NOT_FOUND);
     } else {
       return currentState().process(reserveSeat).fold(
-        error -> errorEffect(error, reserveSeat),
-        showEvent -> persistEffect(showEvent, "reserved")
+          error -> errorEffect(error, reserveSeat),
+          showEvent -> persistEffect(showEvent, "reserved")
       );
     }
   }
@@ -76,10 +77,10 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
     } else {
       CancelSeatReservation cancelSeatReservation = new CancelSeatReservation(reservationId);
       return currentState().process(cancelSeatReservation).fold(
-        error -> errorEffect(error, cancelSeatReservation, e -> e == DUPLICATED_COMMAND
-          || e == CANCELLING_CONFIRMED_RESERVATION
-          || e == RESERVATION_NOT_FOUND),
-        showEvent -> persistEffect(showEvent, "reservation cancelled")
+          error -> errorEffect(error, cancelSeatReservation, e -> e == DUPLICATED_COMMAND
+              || e == CANCELLING_CONFIRMED_RESERVATION
+              || e == RESERVATION_NOT_FOUND),
+          showEvent -> persistEffect(showEvent, "reservation cancelled")
       );
     }
   }
@@ -91,16 +92,16 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
     } else {
       ConfirmReservationPayment confirmReservationPayment = new ConfirmReservationPayment(reservationId);
       return currentState().process(confirmReservationPayment).fold(
-        error -> errorEffect(error, confirmReservationPayment),
-        showEvent -> persistEffect(showEvent, "payment confirmed")
+          error -> errorEffect(error, confirmReservationPayment),
+          showEvent -> persistEffect(showEvent, "payment confirmed")
       );
     }
   }
 
   private Effect<Response> persistEffect(ShowEvent showEvent, String message) {
     return effects()
-      .emitEvent(showEvent)
-      .thenReply(__ -> Success.of(message));
+        .emitEvent(showEvent)
+        .thenReply(__ -> Success.of(message));
   }
 
   private Effect<Response> errorEffect(ShowCommandError error, ShowCommand showCommand) {
@@ -131,8 +132,8 @@ public class ShowEntity extends EventSourcedEntity<Show, ShowEvent> {
       return effects().error("show not found", NOT_FOUND);
     } else {
       return currentState().seats().get(seatNumber).fold(
-        () -> effects().error("seat not found", NOT_FOUND),
-        seat -> effects().reply(seat.status())
+          () -> effects().error("seat not found", NOT_FOUND),
+          seat -> effects().reply(seat.status())
       );
     }
   }

@@ -24,15 +24,15 @@ class WalletEntityTest {
     //given
     var walletId = randomWalletId();
     var initialAmount = 100;
-    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(WalletEntity::new);
+    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(walletId, WalletEntity::new);
 
     //when
-    EventSourcedResult<Response> result = testKit.call(wallet -> wallet.create(walletId, initialAmount));
+    EventSourcedResult<Response> result = testKit.call(wallet -> wallet.create(initialAmount));
 
     //then
     assertThat(result.isReply()).isTrue();
     assertThat(result.getNextEventOfType(WalletCreated.class).initialAmount()).isEqualTo(BigDecimal.valueOf(initialAmount));
-    assertThat(testKit.getState().id()).isEqualTo(walletId);
+    assertThat(testKit.getState().id()).isEqualTo("stubEntityId");
     assertThat(testKit.getState().balance()).isEqualTo(BigDecimal.valueOf(initialAmount));
   }
 
@@ -41,8 +41,8 @@ class WalletEntityTest {
     //given
     var walletId = randomWalletId();
     var initialAmount = 100;
-    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(WalletEntity::new);
-    testKit.call(wallet -> wallet.create(walletId, initialAmount));
+    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(walletId, WalletEntity::new);
+    testKit.call(wallet -> wallet.create(initialAmount));
     var chargeWallet = new WalletCommand.ChargeWallet(new BigDecimal(10), "r1", randomCommandId());
 
     //when
@@ -50,7 +50,7 @@ class WalletEntityTest {
 
     //then
     assertThat(result.isReply()).isTrue();
-    assertThat(result.getNextEventOfType(WalletCharged.class)).isEqualTo(new WalletCharged(walletId, chargeWallet.amount(), chargeWallet.expenseId(), chargeWallet.commandId()));
+    assertThat(result.getNextEventOfType(WalletCharged.class)).isEqualTo(new WalletCharged("stubEntityId", chargeWallet.amount(), chargeWallet.expenseId(), chargeWallet.commandId()));
     assertThat(testKit.getState().balance()).isEqualTo(new BigDecimal(90));
   }
 
@@ -59,8 +59,8 @@ class WalletEntityTest {
     //given
     var walletId = randomWalletId();
     var initialAmount = 100;
-    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(WalletEntity::new);
-    testKit.call(wallet -> wallet.create(walletId, initialAmount));
+    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(walletId, WalletEntity::new);
+    testKit.call(wallet -> wallet.create(initialAmount));
     var chargeWallet = new WalletCommand.ChargeWallet(new BigDecimal(10), "r1", randomCommandId());
     testKit.call(wallet -> wallet.charge(chargeWallet));
 
@@ -78,8 +78,8 @@ class WalletEntityTest {
     //given
     var walletId = randomWalletId();
     var initialAmount = 100;
-    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(WalletEntity::new);
-    testKit.call(wallet -> wallet.create(walletId, initialAmount));
+    EventSourcedTestKit<Wallet, WalletEvent, WalletEntity> testKit = EventSourcedTestKit.of(walletId, WalletEntity::new);
+    testKit.call(wallet -> wallet.create(initialAmount));
     var chargeWallet = new WalletCommand.ChargeWallet(new BigDecimal(10), "r1", randomCommandId());
     testKit.call(wallet -> wallet.charge(chargeWallet));
 

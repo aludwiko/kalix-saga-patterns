@@ -50,7 +50,8 @@ public class WalletEntity extends EventSourcedEntity<Wallet, WalletEvent> {
   }
 
   @PostMapping("/create/{initialBalance}")
-  public Effect<Response> create(@PathVariable String id, @PathVariable int initialBalance) {
+  public Effect<Response> create(@PathVariable int initialBalance) {
+    String id = commandContext().entityId();
     WalletCommand.CreateWallet createWallet = new WalletCommand.CreateWallet(id, BigDecimal.valueOf(initialBalance));
     return currentState().process(createWallet).fold(
       error -> errorEffect(error, createWallet),

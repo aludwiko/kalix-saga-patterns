@@ -18,7 +18,6 @@ class ShowEntityTest {
   @Test
   public void shouldReserveAndConfirmSeat() {
     //given
-    var showId = randomShowId();
     var walletId = randomWalletId();
     var reservationId = randomReservationId();
     int seatNumber = 1;
@@ -27,7 +26,7 @@ class ShowEntityTest {
     var reserveSeat = new ShowCommand.ReserveSeat(walletId, reservationId, seatNumber);
 
     //when
-    testKit.call(s -> s.create(showId, createShow));
+    testKit.call(s -> s.create(createShow));
     testKit.call(s -> s.reserve(reserveSeat));
     EventSourcedResult<Response> result = testKit.call(s -> s.confirmPayment(reservationId));
 
